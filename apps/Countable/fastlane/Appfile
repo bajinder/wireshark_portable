@@ -1,9 +1,17 @@
-# Countable — Appfile
+# infra/templates/fastlane/Appfile
 #
-# Thin and project-specific. The canonical fastlane conventions and shared lane
-# implementations this project follows live in ~/infra/templates — see the comment
-# block at the top of Fastfile for how that maps onto this app.
+# Env-driven so this file never needs per-app edits. Values come from
+# fastlane/.env (written by infra/templates/setup.sh) and/or the runner's
+# host environment.
 
-app_identifier(ENV.fetch("APP_IDENTIFIER", "com.bajinder.countable"))
+app_identifier(ENV["APP_IDENTIFIER"]) if ENV["APP_IDENTIFIER"]
+
+# Optional: only needed if you use an Apple ID session anywhere instead of
+# exclusively the App Store Connect API key. Most lanes in this template
+# use the ASC API key (see Fastfile `asc_api_key`) and don't need this.
 apple_id(ENV["APPLE_ID"]) if ENV["APPLE_ID"]
+
+# Optional: needed by some actions (e.g. match cert creation) when your
+# Apple account belongs to more than one team.
 team_id(ENV["TEAM_ID"]) if ENV["TEAM_ID"]
+itc_team_id(ENV["ITC_TEAM_ID"]) if ENV["ITC_TEAM_ID"]

@@ -1,63 +1,133 @@
-# Countable — Fastfile
+# infra/templates/fastlane/Fastfile
 #
-# Thin, env-driven lanes only. The canonical lane implementations and CI conventions
-# this project follows live in ~/infra/templates (shared across apps in this
-# workspace) — this file deliberately does not reinvent them, it just wires
-# Countable's own identifiers into the same shape:
+# App-agnostic Fastfile driven entirely by ENV vars (APP_IDENTIFIER, SCHEME,
+# DEVICE_ID, ASC_*, MATCH_*). Copied into each app repo by
+# infra/templates/setup.sh -- do not hardcode app-specific values here; put
+# those in fastlane/.env for that repo instead.
 #
-#   APP_IDENTIFIER  bundle id used for build/upload (default: com.bajinder.countable)
-#   SCHEME          Xcode scheme name (default: "Countable")
-#   DEVICE_ID       simulator name/UDID used by `test` (default: "iPhone 15")
-#
-# project.yml is the single source of truth for the Xcode project — every lane
-# regenerates Countable.xcodeproj from it first so a stale/hand-edited .xcodeproj can
-# never silently drift from project.yml.
+# Env loading: fastlane already auto-loads fastlane/.env.default then
+# fastlane/.env on every invocation. The explicit Dotenv.overload below is a
+# defensive fallback for the rare case this Fastfile is loaded in a context
+# where that auto-loading didn't happen (e.g. some `fastlane run` action
+# invocations) -- it's a harmless no-op otherwise.
+require "dotenv"
+env_file = File.expand_path("../.env", __FILE__)
+Dotenv.overload(env_file) if File.exist?(env_file)
 
 default_platform(:ios)
 
-APP_IDENTIFIER = ENV.fetch("APP_IDENTIFIER", "com.bajinder.countable")
-SCHEME = ENV.fetch("SCHEME", "Countable")
-DEVICE_ID = ENV.fetch("DEVICE_ID", "iPhone 15")
-
-before_all do
-  project_root = File.expand_path("..", __dir__)
-  spec_path = File.join(project_root, "project.yml")
-  if File.exist?(spec_path)
-    sh("xcodegen", "generate", "--spec", spec_path, "--project", project_root)
+# Central place to fail fast with a clear message if a required var is
+# missing, instead of a cryptic fastlane action error three steps later.
+def require_env!(*names)
+  missing = names.select { |n| ENV[n].to_s.strip.empty? }
+  unless missing.empty?
+    UI.user_error!("Missing required env var(s): #{missing.join(', ')}. " \
+                    "Set them in fastlane/.env (see infra/.env.default).")
   end
 end
 
+# App Store Connect API key auth hash, shared by pilot/deliver/match calls
+# that need it. Built lazily so lanes that don't need ASC auth (e.g. a bare
+# local `scan`) don't require these vars to be set.
+def asc_api_key
+  require_env!("ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_KEY_PATH")
+  app_store_connect_api_key(
+    key_id: ENV["ASC_KEY_ID"],
+    issuer_id: ENV["ASC_ISSUER_ID"],
+    key_filepath: ENV["ASC_KEY_PATH"],
+    duration: 1200,
+    in_house: false
+  )
+end
+
+# Returns true if the iPhone identified by DEVICE_ID is currently attached
+# and visible to the host. Tries `xcrun devicectl` first (modern, Xcode 15+)
+# and falls back to `xcrun xctrace list devices` (works on older Xcode too).
+def physical_device_connected?(device_id)
+  return false if device_id.to_s.strip.empty?
+
+  devicectl_out = `xcrun devicectl list devices 2>/dev/null`
+  return true if $?.success? && devicectl_out.include?(device_id)
+
+  xctrace_out = `xcrun xctrace list devices 2>/dev/null`
+  return true if $?.success? && xctrace_out.include?(device_id)
+
+  false
+end
+
 platform :ios do
-  desc "Run unit + UI tests (CountableTests, CountableUITests)"
+  desc "Run unit tests + XCUITests on the configured physical device (falls back to simulator if not connected)"
   lane :test do
+    require_env!("SCHEME")
+    device_id = ENV["DEVICE_ID"]
+
+    if physical_device_connected?(device_id)
+      UI.message("Running tests on physical device #{device_id}")
+      destination = "platform=iOS,id=#{device_id}"
+    else
+      UI.important("################################################################")
+      UI.important("# WARNING: physical device DEVICE_ID='#{device_id}' not found  #")
+      UI.important("# (checked `xcrun devicectl` and `xcrun xctrace list devices`). #")
+      UI.important("# Falling back to an iPhone SIMULATOR. On-device-only issues    #")
+      UI.important("# (signing, entitlements, hardware APIs) will NOT be caught.    #")
+      UI.important("################################################################")
+      destination = "platform=iOS Simulator,name=iPhone 15,OS=latest"
+    end
+
     run_tests(
-      scheme: SCHEME,
-      devices: [DEVICE_ID],
+      scheme: ENV["SCHEME"],
+      destination: destination,
+      result_bundle: true,
+      output_directory: "./fastlane/test_output",
+      fail_build: true
+    )
+  end
+
+  desc "test -> match(appstore) -> build signed .ipa -> upload to TestFlight"
+  lane :beta do
+    require_env!("APP_IDENTIFIER", "SCHEME", "MATCH_GIT_URL", "MATCH_PASSWORD")
+
+    test
+
+    match(
+      type: "appstore",
+      readonly: false,
+      app_identifier: ENV["APP_IDENTIFIER"],
+      git_url: ENV["MATCH_GIT_URL"],
+      storage_mode: "git"
+      # api_key intentionally omitted here: match only needs Developer
+      # Portal access when it has to CREATE new certs/profiles, which uses
+      # your Apple ID session or the ASC API key configured via Appfile /
+      # app_store_connect_api_key already resolved above if present.
+    )
+
+    build_app(
+      scheme: ENV["SCHEME"],
+      export_method: "app-store",
+      output_directory: "./build",
       clean: true
     )
-  end
 
-  desc "Build and upload a TestFlight beta"
-  lane :beta do
-    build_app(
-      scheme: SCHEME,
-      export_method: "app-store"
-    )
     upload_to_testflight(
-      app_identifier: APP_IDENTIFIER,
-      skip_waiting_for_build_processing: true
+      api_key: asc_api_key,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false
     )
   end
 
-  desc "Submit the latest TestFlight build for App Store review"
+  desc "beta -> upload metadata/screenshots to App Store Connect (STOPS before submitting for review)"
   lane :release do
-    upload_to_app_store(
-      app_identifier: APP_IDENTIFIER,
-      submit_for_review: false,
-      automatic_release: false,
-      force: true,
-      skip_screenshots: true,
-      skip_metadata: false
+    beta
+
+    UI.important("Uploading metadata only -- binary already uploaded via TestFlight in the beta lane.")
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: ENV["APP_IDENTIFIER"],
+      force: true,                # skip the interactive HTML diff confirmation
+      skip_binary_upload: true,   # binary already went up via pilot in `beta`
+      skip_screenshots: false,
+      submit_for_review: false    # deliberately stop here -- see infra/INFRA.md
     )
+    UI.success("Metadata uploaded. Review submission is a manual step -- see infra/INFRA.md.")
   end
 end

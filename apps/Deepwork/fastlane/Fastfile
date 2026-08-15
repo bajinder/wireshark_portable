@@ -1,14 +1,15 @@
-# apps/Deepwork/fastlane/Fastfile
+# infra/templates/fastlane/Fastfile
 #
-# Thin, app-specific copy of the canonical template at
-# ~/infra/templates/fastlane/Fastfile (repo path: infra/templates/fastlane/Fastfile).
-# Do not diverge from that template's structure/lane names here — if the
-# lanes themselves need to change, change the canonical template and
-# re-run ~/infra/templates/setup.sh (or copy by hand) across all four apps
-# so they stay in sync. This copy is app-agnostic and env-driven
-# (APP_IDENTIFIER, SCHEME, DEVICE_ID, ASC_*, MATCH_*) — Deepwork's actual
-# values live in fastlane/.env.default (committed placeholders/known
-# values) and fastlane/.env (gitignored, real secrets).
+# App-agnostic Fastfile driven entirely by ENV vars (APP_IDENTIFIER, SCHEME,
+# DEVICE_ID, ASC_*, MATCH_*). Copied into each app repo by
+# infra/templates/setup.sh -- do not hardcode app-specific values here; put
+# those in fastlane/.env for that repo instead.
+#
+# Env loading: fastlane already auto-loads fastlane/.env.default then
+# fastlane/.env on every invocation. The explicit Dotenv.overload below is a
+# defensive fallback for the rare case this Fastfile is loaded in a context
+# where that auto-loading didn't happen (e.g. some `fastlane run` action
+# invocations) -- it's a harmless no-op otherwise.
 require "dotenv"
 env_file = File.expand_path("../.env", __FILE__)
 Dotenv.overload(env_file) if File.exist?(env_file)
@@ -68,7 +69,7 @@ platform :ios do
       UI.important("# WARNING: physical device DEVICE_ID='#{device_id}' not found  #")
       UI.important("# (checked `xcrun devicectl` and `xcrun xctrace list devices`). #")
       UI.important("# Falling back to an iPhone SIMULATOR. On-device-only issues    #")
-      UI.important("# (Live Activities, signing, entitlements) will NOT be caught.  #")
+      UI.important("# (signing, entitlements, hardware APIs) will NOT be caught.    #")
       UI.important("################################################################")
       destination = "platform=iOS Simulator,name=iPhone 15,OS=latest"
     end
@@ -125,8 +126,8 @@ platform :ios do
       force: true,                # skip the interactive HTML diff confirmation
       skip_binary_upload: true,   # binary already went up via pilot in `beta`
       skip_screenshots: false,
-      submit_for_review: false    # deliberately stop here -- see SHIP.md
+      submit_for_review: false    # deliberately stop here -- see infra/INFRA.md
     )
-    UI.success("Metadata uploaded. Review submission is a manual step -- see SHIP.md.")
+    UI.success("Metadata uploaded. Review submission is a manual step -- see infra/INFRA.md.")
   end
 end

@@ -1,4 +1,5 @@
 import Foundation
+import os
 import UIKit
 import Vision
 
@@ -18,14 +19,30 @@ final class TextRecognizer: TextRecognizing {
         let orientation = CGImagePropertyOrientation(image.imageOrientation)
 
         return await withCheckedContinuation { continuation in
+            // A failed `perform` can BOTH invoke the request's completion
+            // handler (with an error) AND throw — resuming a checked
+            // continuation twice traps, so all resume paths go through this
+            // once-only gate.
+            let resumeState = OSAllocatedUnfairLock(initialState: false)
+            let resumeOnce: ([String]) -> Void = { lines in
+                let shouldResume = resumeState.withLock { hasResumed -> Bool in
+                    if hasResumed { return false }
+                    hasResumed = true
+                    return true
+                }
+                if shouldResume {
+                    continuation.resume(returning: lines)
+                }
+            }
+
             let request = VNRecognizeTextRequest { request, error in
                 guard error == nil,
                       let observations = request.results as? [VNRecognizedTextObservation] else {
-                    continuation.resume(returning: [])
+                    resumeOnce([])
                     return
                 }
                 let lines = observations.compactMap { $0.topCandidates(1).first?.string }
-                continuation.resume(returning: lines)
+                resumeOnce(lines)
             }
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = true
@@ -36,7 +53,7 @@ final class TextRecognizer: TextRecognizing {
                 do {
                     try handler.perform([request])
                 } catch {
-                    continuation.resume(returning: [])
+                    resumeOnce([])
                 }
             }
         }

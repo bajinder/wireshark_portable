@@ -1,10 +1,17 @@
-# Appfile
+# infra/templates/fastlane/Appfile
 #
-# Thin, app-specific copy of the canonical fastlane Appfile template.
-# Canonical source of truth: ~/infra/templates/fastlane/Appfile
-# Keep this file in sync with the template — only `app_identifier` and
-# `team_id`/`apple_id` overrides should differ per app.
+# Env-driven so this file never needs per-app edits. Values come from
+# fastlane/.env (written by infra/templates/setup.sh) and/or the runner's
+# host environment.
 
-app_identifier("com.bajinder.catchbook")
-apple_id(ENV["FASTLANE_APPLE_ID"] || "")
-team_id(ENV["FASTLANE_TEAM_ID"] || "")
+app_identifier(ENV["APP_IDENTIFIER"]) if ENV["APP_IDENTIFIER"]
+
+# Optional: only needed if you use an Apple ID session anywhere instead of
+# exclusively the App Store Connect API key. Most lanes in this template
+# use the ASC API key (see Fastfile `asc_api_key`) and don't need this.
+apple_id(ENV["APPLE_ID"]) if ENV["APPLE_ID"]
+
+# Optional: needed by some actions (e.g. match cert creation) when your
+# Apple account belongs to more than one team.
+team_id(ENV["TEAM_ID"]) if ENV["TEAM_ID"]
+itc_team_id(ENV["ITC_TEAM_ID"]) if ENV["ITC_TEAM_ID"]

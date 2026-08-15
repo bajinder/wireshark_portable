@@ -1,8 +1,8 @@
-# apps/Deepwork/fastlane/Appfile
+# infra/templates/fastlane/Appfile
 #
-# Thin copy of ~/infra/templates/fastlane/Appfile (repo path:
-# infra/templates/fastlane/Appfile). Env-driven so this file never needs
-# per-app edits — see fastlane/.env.default / fastlane/.env.
+# Env-driven so this file never needs per-app edits. Values come from
+# fastlane/.env (written by infra/templates/setup.sh) and/or the runner's
+# host environment.
 
 app_identifier(ENV["APP_IDENTIFIER"]) if ENV["APP_IDENTIFIER"]
 
