@@ -1,0 +1,12 @@
+# apps/Deepwork/fastlane/Gymfile
+#
+# Thin copy of ~/infra/templates/fastlane/Gymfile (repo path:
+# infra/templates/fastlane/Gymfile). Defaults for `build_app` (gym); the
+# `beta` lane in the Fastfile passes these explicitly itself, this covers
+# anyone running `fastlane gym` directly from the CLI.
+
+scheme(ENV["SCHEME"])
+export_method("app-store")
+output_directory("./build")
+clean(true)
+silent(false)

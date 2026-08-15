@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  infra/launchd/com.local.act-runner.plist
+
+  Keeps `act_runner daemon` running as the logged-in user, across reboots
+  and crashes. Installed to ~/Library/LaunchAgents/com.local.act-runner.plist
+  by infra/scripts/03_register_runner.sh, which also substitutes the
+  __HOME__ placeholders below with the real $HOME path (launchd plists
+  cannot reference $HOME or ~ themselves).
+
+  IMPORTANT: launchd agents do NOT inherit your interactive shell's PATH
+  (no .zprofile/.zshrc gets sourced). Xcode's command-line tools
+  (xcodebuild, xcrun, simctl) and Homebrew-installed tools (fastlane,
+  xcodegen, act_runner itself) must all be reachable via the explicit PATH
+  set in EnvironmentVariables below, or every CI job will fail with
+  "command not found" despite everything working fine in a terminal.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.local.act-runner</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/opt/homebrew/bin/act_runner</string>
+		<string>daemon</string>
+		<string>--config</string>
+		<string>__HOME__/infra/runner/config.yaml</string>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>__HOME__/infra/runner</string>
+
+	<!-- Start at load (covers login/reboot) and keep alive if it exits/crashes. -->
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+		<key>Crashed</key>
+		<true/>
+	</dict>
+
+	<key>StandardOutPath</key>
+	<string>__HOME__/infra/logs/act-runner.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/infra/logs/act-runner.err.log</string>
+
+	<!--
+	  Explicit PATH so the runner (and every job step it launches) can find
+	  Homebrew tools and Xcode's CLI tools. Order matters: Homebrew (Apple
+	  Silicon prefix) first, then Xcode's xcrun/xcodebuild location, then
+	  the standard system paths.
+	-->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/Apple/usr/bin</string>
+		<key>HOME</key>
+		<string>__HOME__</string>
+		<key>DEVELOPER_DIR</key>
+		<string>/Applications/Xcode.app/Contents/Developer</string>
+		<key>LANG</key>
+		<string>en_US.UTF-8</string>
+	</dict>
+
+	<!-- Don't spin-loop restart if it's crash-looping immediately. -->
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+
+	<key>ProcessType</key>
+	<string>Interactive</string>
+</dict>
+</plist>

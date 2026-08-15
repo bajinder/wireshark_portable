@@ -1,0 +1,66 @@
+# infra/templates/act-runner/config.yaml
+#
+# Template act_runner configuration. infra/scripts/03_register_runner.sh
+# copies this to ~/infra/runner/config.yaml (only if that file doesn't
+# already exist -- idempotent) and substitutes __HOME__ with the real
+# $HOME path.
+#
+# This targets act_runner's HOST executor (no Docker), which is what makes
+# jobs able to see Xcode + the plugged-in iPhone. That mode is selected by
+# the runner LABEL suffix (`macos-host:host`) at registration time, not by
+# anything in this file -- but a few settings below still matter for host
+# mode. If your installed act_runner version's schema has drifted from
+# this, regenerate a fresh baseline with `act_runner generate-config` and
+# re-apply the `runner.labels` / `host.workdir_parent` / `log.level`
+# customizations below.
+
+log:
+  level: info
+
+runner:
+  # Where the runner's registration state (.runner) lives. Relative to the
+  # working directory act_runner is started from -- 03_register_runner.sh
+  # and the launchd plist both use ~/infra/runner as that working dir.
+  file: .runner
+  capacity: 1
+  # Extra env vars injected into every job on top of whatever the runner
+  # process itself inherits (see infra/launchd/com.local.act-runner.plist
+  # for the base PATH/env). Left empty here on purpose: keep secrets out of
+  # a file that might get committed by accident. Prefer exporting real
+  # secrets in the runner's own shell/launchd environment, or as Gitea repo
+  # secrets consumed via `${{ secrets.* }}` in workflow YAML.
+  envs: {}
+  env_file: .env
+  timeout: 3h
+  insecure: false
+  fetch_timeout: 5s
+  fetch_interval: 2s
+  # Registration also passes --labels on the CLI; this is a fallback if you
+  # ever run `act_runner daemon` without having registered via the script.
+  labels:
+    - "macos-host:host"
+
+cache:
+  enabled: true
+  dir: ""
+  host: ""
+  port: 0
+  external_server: ""
+
+container:
+  # Unused in host-executor mode (no Docker involved in running jobs), left
+  # at defaults for completeness / in case a future job explicitly wants a
+  # containerized label alongside macos-host.
+  network: ""
+  privileged: false
+  options: ""
+  workdir_parent: ""
+  valid_volumes: []
+  docker_host: ""
+  force_pull: false
+
+host:
+  # Base directory under which host-executor jobs get their per-run
+  # workspace. Keep it under ~/infra so everything CI-related lives in one
+  # place and is easy to find/clean up.
+  workdir_parent: "__HOME__/infra/runner/work"

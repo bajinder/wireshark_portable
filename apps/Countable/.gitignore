@@ -1,0 +1,36 @@
+# Countable — .gitignore
+
+# XcodeGen-generated project — regenerate with `xcodegen generate` / bootstrap.sh.
+# Never hand-edit or commit this; project.yml is the source of truth.
+*.xcodeproj/
+*.xcworkspace/
+
+# Xcode user state / DerivedData
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Build products
+build/
+*.xcresult
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/screenshots/**/*.html
+fastlane/test_output
+fastlane/.env
+fastlane/.env.*
+
+# Secrets / local env
+.env
+.env.*
+
+# macOS
+.DS_Store

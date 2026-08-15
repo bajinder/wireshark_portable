@@ -1,0 +1,73 @@
+# infra/templates/.gitea/workflows/ci.yml
+#
+# Gitea Actions is API/context-compatible with GitHub Actions syntax
+# (including the `github.*` context object -- there is no separate
+# `gitea.*` context you need to use instead), so this reads like a normal
+# GitHub Actions workflow. `runs-on: macos-host` targets the native
+# act_runner registered with label `macos-host:host` (see
+# infra/scripts/03_register_runner.sh) -- a real shell on the Mac mini,
+# not a container, so it can see Xcode and the plugged-in iPhone.
+#
+# Trigger split:
+#   - push to `main`            -> `test` job only (fast feedback loop)
+#   - push of a tag matching v* -> `beta` job only (build + TestFlight)
+# A single `push` trigger with both `branches` and `tags` filters matches
+# on EITHER condition, so each job below guards itself with an `if:` on
+# `github.ref` to run only for the trigger that actually fired.
+#
+# Secrets: this template does NOT hardcode secret passing. Two supported
+# options (see infra/INFRA.md):
+#   1. Host env (default, simplest for a single-user local box): the
+#      act_runner host-executor process inherits the environment set in
+#      infra/launchd/com.local.act-runner.plist, so ASC_*/MATCH_* vars
+#      exported there (or in fastlane/.env in the repo, gitignored) are
+#      already visible to `fastlane` with no extra wiring below.
+#   2. Gitea repo secrets: uncomment the `env:` blocks below and add the
+#      same var names under this repo's Settings -> Secrets in the Gitea
+#      web UI. Useful if you ever run more than one app off shared
+#      per-repo credentials instead of one shared host environment.
+
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+jobs:
+  test:
+    if: startsWith(github.ref, 'refs/heads/')
+    runs-on: macos-host
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project (XcodeGen)
+        run: xcodegen generate
+
+      - name: Run tests
+        run: bundle exec fastlane test || fastlane test
+        # env:
+        #   DEVICE_ID: ${{ secrets.DEVICE_ID }}
+        #   SCHEME: ${{ vars.SCHEME }}
+        #   APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+
+  beta:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-host
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project (XcodeGen)
+        run: xcodegen generate
+
+      - name: Build and upload to TestFlight
+        run: bundle exec fastlane beta || fastlane beta
+        # env:
+        #   APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+        #   SCHEME: ${{ vars.SCHEME }}
+        #   DEVICE_ID: ${{ secrets.DEVICE_ID }}
+        #   ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        #   ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        #   ASC_KEY_PATH: ${{ secrets.ASC_KEY_PATH }}
+        #   MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        #   MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}

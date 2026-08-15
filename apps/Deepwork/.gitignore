@@ -1,0 +1,25 @@
+# apps/Deepwork/.gitignore
+
+# XcodeGen-generated project — project.yml is the source of truth.
+Deepwork.xcodeproj/
+Generated/
+
+# Xcode / build products
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+
+# fastlane secrets & output (fastlane/.env.default is NOT ignored — it's
+# placeholders/known values, safe to commit)
+fastlane/.env
+fastlane/report.xml
+fastlane/test_output/
+fastlane/screenshots/
+
+# Misc
+.DS_Store
+.env

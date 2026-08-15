@@ -1,0 +1,6 @@
+# Standard Appfile. Fill in your own Apple Developer account details before
+# running lanes that talk to App Store Connect (build_and_test does not).
+app_identifier("com.bajinder.keeply")
+apple_id(ENV["KEEPLY_APPLE_ID"] || "")
+itc_team_id(ENV["KEEPLY_ITC_TEAM_ID"] || "")
+team_id(ENV["KEEPLY_TEAM_ID"] || "")

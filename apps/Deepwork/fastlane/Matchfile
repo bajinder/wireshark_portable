@@ -1,0 +1,15 @@
+# apps/Deepwork/fastlane/Matchfile
+#
+# Thin copy of ~/infra/templates/fastlane/Matchfile (repo path:
+# infra/templates/fastlane/Matchfile). Points match at the local bare git
+# repo created by infra/scripts/04_setup_match_repo.sh. Env-driven -- no
+# per-app edits needed.
+
+git_url(ENV["MATCH_GIT_URL"])
+storage_mode("git")
+type("appstore")
+readonly(false)
+
+app_identifier(ENV["APP_IDENTIFIER"]) if ENV["APP_IDENTIFIER"]
+username(ENV["APPLE_ID"]) if ENV["APPLE_ID"]
+team_id(ENV["TEAM_ID"]) if ENV["TEAM_ID"]

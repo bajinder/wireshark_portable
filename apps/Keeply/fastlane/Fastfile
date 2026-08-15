@@ -1,0 +1,52 @@
+# Thin, standard Fastfile for Keeply. Mirrors the shape of the canonical
+# templates in ~/infra/templates: a xcodegen step ahead of every lane that
+# touches the Xcode project, since Keeply.xcodeproj is not checked in.
+
+default_platform(:ios)
+
+SCHEME = "Keeply"
+WORKSPACE_DIR = File.expand_path("..", __dir__)
+
+platform :ios do
+  desc "Regenerate Keeply.xcodeproj from project.yml"
+  lane :generate_project do
+    sh("cd #{WORKSPACE_DIR} && xcodegen generate")
+  end
+
+  desc "Run the unit + UI test suites on the default simulator"
+  lane :test do
+    generate_project
+    run_tests(
+      project: "#{WORKSPACE_DIR}/Keeply.xcodeproj",
+      scheme: SCHEME,
+      devices: ["iPhone 15"],
+      clean: true
+    )
+  end
+
+  desc "Build the app for Debug without running tests (fast smoke check)"
+  lane :build do
+    generate_project
+    build_app(
+      project: "#{WORKSPACE_DIR}/Keeply.xcodeproj",
+      scheme: SCHEME,
+      configuration: "Debug",
+      skip_package_ipa: true,
+      skip_archive: true,
+      destination: "generic/platform=iOS Simulator"
+    )
+  end
+
+  desc "Archive and upload a release build to TestFlight"
+  lane :release do
+    generate_project
+    increment_build_number(xcodeproj: "#{WORKSPACE_DIR}/Keeply.xcodeproj")
+    build_app(
+      project: "#{WORKSPACE_DIR}/Keeply.xcodeproj",
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store"
+    )
+    upload_to_testflight
+  end
+end

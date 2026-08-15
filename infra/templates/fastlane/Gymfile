@@ -1,0 +1,12 @@
+# infra/templates/fastlane/Gymfile
+#
+# Defaults for `build_app` (gym). The Fastfile's `beta` lane passes
+# scheme/export_method/output_directory/clean explicitly (so it's readable
+# top-to-bottom in one place); this Gymfile covers the same defaults for
+# anyone running `fastlane gym` directly from the CLI.
+
+scheme(ENV["SCHEME"])
+export_method("app-store")
+output_directory("./build")
+clean(true)
+silent(false)

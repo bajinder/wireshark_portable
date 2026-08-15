@@ -1,0 +1,63 @@
+# Countable — Fastfile
+#
+# Thin, env-driven lanes only. The canonical lane implementations and CI conventions
+# this project follows live in ~/infra/templates (shared across apps in this
+# workspace) — this file deliberately does not reinvent them, it just wires
+# Countable's own identifiers into the same shape:
+#
+#   APP_IDENTIFIER  bundle id used for build/upload (default: com.bajinder.countable)
+#   SCHEME          Xcode scheme name (default: "Countable")
+#   DEVICE_ID       simulator name/UDID used by `test` (default: "iPhone 15")
+#
+# project.yml is the single source of truth for the Xcode project — every lane
+# regenerates Countable.xcodeproj from it first so a stale/hand-edited .xcodeproj can
+# never silently drift from project.yml.
+
+default_platform(:ios)
+
+APP_IDENTIFIER = ENV.fetch("APP_IDENTIFIER", "com.bajinder.countable")
+SCHEME = ENV.fetch("SCHEME", "Countable")
+DEVICE_ID = ENV.fetch("DEVICE_ID", "iPhone 15")
+
+before_all do
+  project_root = File.expand_path("..", __dir__)
+  spec_path = File.join(project_root, "project.yml")
+  if File.exist?(spec_path)
+    sh("xcodegen", "generate", "--spec", spec_path, "--project", project_root)
+  end
+end
+
+platform :ios do
+  desc "Run unit + UI tests (CountableTests, CountableUITests)"
+  lane :test do
+    run_tests(
+      scheme: SCHEME,
+      devices: [DEVICE_ID],
+      clean: true
+    )
+  end
+
+  desc "Build and upload a TestFlight beta"
+  lane :beta do
+    build_app(
+      scheme: SCHEME,
+      export_method: "app-store"
+    )
+    upload_to_testflight(
+      app_identifier: APP_IDENTIFIER,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Submit the latest TestFlight build for App Store review"
+  lane :release do
+    upload_to_app_store(
+      app_identifier: APP_IDENTIFIER,
+      submit_for_review: false,
+      automatic_release: false,
+      force: true,
+      skip_screenshots: true,
+      skip_metadata: false
+    )
+  end
+end

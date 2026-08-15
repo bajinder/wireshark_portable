@@ -1,0 +1,63 @@
+# Local Gitea + Gitea Actions control plane.
+#
+# Image choice: we use the standard (root, s6-overlay based) `gitea/gitea`
+# image rather than the "rootless" variant. Rationale:
+#   - The rootless image expects the caller to bind-mount three separate
+#     paths (/var/lib/gitea, /etc/gitea, /tmp/gitea) and run as an arbitrary
+#     non-root UID, which is extra ceremony for a single-user local box.
+#   - The standard image accepts USER_UID/USER_GID env vars and remaps its
+#     internal `git` user to match, so files written into the named volume
+#     are still owned sanely on the host (not relevant here anyway since
+#     this is a named Docker volume, not a bind mount).
+#   - The standard image's docs/community support for Actions is more
+#     battle-tested at the time of writing.
+# If you prefer the rootless image, swap the `image:` line for
+# `gitea/gitea:1.22-rootless` and drop USER_UID/USER_GID.
+#
+# Pin the tag (don't use `:latest`) so `docker compose pull` doesn't silently
+# jump major versions on this box. Bump deliberately when you want to upgrade.
+
+services:
+  gitea:
+    image: gitea/gitea:1.22
+    container_name: gitea
+    restart: unless-stopped
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      # --- Core server config ---
+      GITEA__server__ROOT_URL: "http://localhost:3000/"
+      GITEA__server__HTTP_PORT: "3000"
+      GITEA__server__SSH_DOMAIN: "localhost"
+      # SSH_PORT is the port advertised in clone URLs (matches the host-side
+      # port below); SSH_LISTEN_PORT is what Gitea's built-in SSH server
+      # actually binds to *inside* the container, which the "2222:22" port
+      # mapping below forwards to. They intentionally differ.
+      GITEA__server__SSH_PORT: "2222"
+      GITEA__server__SSH_LISTEN_PORT: "22"
+      GITEA__server__DISABLE_SSH: "false"
+      GITEA__server__START_SSH_SERVER: "true"
+      # Skip the web install wizard so the container comes up ready to use.
+      # 01_start_gitea.sh creates the first admin user non-interactively via
+      # `gitea admin user create` after this.
+      GITEA__security__INSTALL_LOCK: "true"
+      # --- Gitea Actions (this is the whole point) ---
+      GITEA__actions__ENABLED: "true"
+      GITEA__actions__DEFAULT_ACTIONS_URL: "github"
+      # --- Misc sane defaults for a local single-user instance ---
+      GITEA__service__DISABLE_REGISTRATION: "true"
+      GITEA__service__REQUIRE_SIGNIN_VIEW: "false"
+      GITEA__log__LEVEL: "info"
+    ports:
+      - "3000:3000"   # Web UI + HTTP(S) git + Actions API
+      - "2222:22"     # SSH git access (host 2222 -> container 22)
+    volumes:
+      - gitea-data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+volumes:
+  # Named volume: survives `docker compose down`, only removed by
+  # `docker compose down -v` (destructive, documented in INFRA.md).
+  gitea-data:
+    name: gitea-data

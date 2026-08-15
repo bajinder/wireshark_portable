@@ -1,0 +1,9 @@
+# Countable — Appfile
+#
+# Thin and project-specific. The canonical fastlane conventions and shared lane
+# implementations this project follows live in ~/infra/templates — see the comment
+# block at the top of Fastfile for how that maps onto this app.
+
+app_identifier(ENV.fetch("APP_IDENTIFIER", "com.bajinder.countable"))
+apple_id(ENV["APPLE_ID"]) if ENV["APPLE_ID"]
+team_id(ENV["TEAM_ID"]) if ENV["TEAM_ID"]

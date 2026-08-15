@@ -1,0 +1,96 @@
+name: Keeply
+options:
+  bundleIdPrefix: com.bajinder
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_PREVIEWS: YES
+
+targets:
+  Keeply:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources
+      - path: Shared
+    resources:
+      - path: SampleReceipts
+      - path: Keeply.storekit
+    info:
+      path: Sources/Supporting/Info.plist
+      properties:
+        CFBundleDisplayName: Keeply
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: "Keeply uses the camera to photograph receipts."
+        NSPhotoLibraryUsageDescription: "Keeply uses your photo library so you can attach an existing receipt photo to a warranty item."
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bajinder.keeply
+        PRODUCT_NAME: Keeply
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_EMIT_LOC_STRINGS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  KeeplyTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Tests/KeeplyTests
+    dependencies:
+      - target: Keeply
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bajinder.keeply.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  KeeplyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: UITests/KeeplyUITests
+    resources:
+      - path: SampleReceipts
+    dependencies:
+      - target: Keeply
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bajinder.keeply.uitests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Keeply:
+    build:
+      targets:
+        Keeply: all
+        KeeplyTests: [test]
+        KeeplyUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - KeeplyTests
+        - KeeplyUITests
+    run:
+      config: Debug
+    archive:
+      config: Release

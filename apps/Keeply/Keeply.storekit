@@ -1,0 +1,35 @@
+{
+  "identifier" : "1A1B46A8-0E01-45E9-8718-988DE081833D",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "46FA3736-A3DA-4E78-9BA2-5B83538547C1",
+      "localizations" : [
+        {
+          "description" : "Unlock unlimited warranty items in Keeply.",
+          "displayName" : "Unlock Unlimited Items",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.bajinder.keeply.unlock",
+      "referenceName" : "Keeply Unlock",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "0",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

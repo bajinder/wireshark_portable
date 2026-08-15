@@ -1,0 +1,130 @@
+# project.yml
+# Deepwork — XcodeGen project definition.
+#
+# Run `./bootstrap.sh` (or `xcodegen generate` directly) to produce
+# Deepwork.xcodeproj from this file. The .xcodeproj itself is gitignored —
+# this file is the source of truth.
+
+name: Deepwork
+
+options:
+  bundleIdPrefix: com.bajinder
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1" # iPhone only for v1
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_EMIT_LOC_STRINGS: true
+    ENABLE_PREVIEWS: true
+
+targets:
+  Deepwork:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bajinder.deepwork
+        PRODUCT_NAME: Deepwork
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: Generated/Deepwork-Info.plist
+      properties:
+        CFBundleDisplayName: Deepwork
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    dependencies:
+      - target: DeepworkActivityExtension
+        embed: true
+
+  DeepworkActivityExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ActivityWidget
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bajinder.deepwork.activity
+        PRODUCT_NAME: DeepworkActivity
+        SKIP_INSTALL: true
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"
+          - "@executable_path/../../Frameworks"
+    info:
+      path: Generated/DeepworkActivityExtension-Info.plist
+      properties:
+        CFBundleDisplayName: DeepworkActivity
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+  DeepworkTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Deepwork
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.bajinder.deepwork.tests
+
+  DeepworkUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Deepwork
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.bajinder.deepwork.uitests
+        TEST_TARGET_NAME: Deepwork
+
+schemes:
+  Deepwork:
+    build:
+      targets:
+        Deepwork: all
+        DeepworkActivityExtension: [run, test, analyze, archive]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - DeepworkTests
+        - DeepworkUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

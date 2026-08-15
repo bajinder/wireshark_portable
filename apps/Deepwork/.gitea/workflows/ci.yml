@@ -1,0 +1,68 @@
+# apps/Deepwork/.gitea/workflows/ci.yml
+#
+# Thin, app-specific copy of the canonical template at
+# ~/infra/templates/.gitea/workflows/ci.yml (repo path:
+# infra/templates/.gitea/workflows/ci.yml). Keep structure/job names in
+# sync with that template — change it there first, then re-copy, rather
+# than letting per-app copies drift.
+#
+# Gitea Actions is API/context-compatible with GitHub Actions syntax
+# (including the `github.*` context object), so this reads like a normal
+# GitHub Actions workflow. `runs-on: macos-host` targets the native
+# act_runner registered with label `macos-host:host` (see
+# infra/scripts/03_register_runner.sh) -- a real shell on the Mac mini, so
+# it can see Xcode, the StoreKit config, and the plugged-in iPhone.
+#
+# Trigger split:
+#   - push to `main`            -> `test` job only (fast feedback loop)
+#   - push of a tag matching v* -> `beta` job only (build + TestFlight)
+#
+# Secrets: see infra/INFRA.md. Either the runner's own host env already has
+# ASC_*/MATCH_* exported (default, simplest), or uncomment the `env:`
+# blocks below and add the same var names under this repo's Settings ->
+# Secrets in the Gitea web UI.
+
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+jobs:
+  test:
+    if: startsWith(github.ref, 'refs/heads/')
+    runs-on: macos-host
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project (XcodeGen)
+        run: xcodegen generate
+
+      - name: Run tests
+        run: bundle exec fastlane test || fastlane test
+        # env:
+        #   DEVICE_ID: ${{ secrets.DEVICE_ID }}
+        #   SCHEME: ${{ vars.SCHEME }}
+        #   APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+
+  beta:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-host
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project (XcodeGen)
+        run: xcodegen generate
+
+      - name: Build and upload to TestFlight
+        run: bundle exec fastlane beta || fastlane beta
+        # env:
+        #   APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+        #   SCHEME: ${{ vars.SCHEME }}
+        #   DEVICE_ID: ${{ secrets.DEVICE_ID }}
+        #   ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        #   ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        #   ASC_KEY_PATH: ${{ secrets.ASC_KEY_PATH }}
+        #   MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        #   MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}

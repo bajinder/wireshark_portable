@@ -1,0 +1,53 @@
+# Fastfile
+#
+# Thin, app-specific copy of the canonical fastlane lanes template.
+# Canonical source of truth: ~/infra/templates/fastlane/Fastfile
+# Only SCHEME/WORKSPACE-ish constants below should differ per app — lane
+# bodies are expected to match the template. If you need different lane
+# behavior, update the template first, then resync this file.
+
+default_platform(:ios)
+
+SCHEME = "Catchbook"
+PROJECT = "Catchbook.xcodeproj"
+
+platform :ios do
+  desc "Generate the Xcode project from project.yml via XcodeGen"
+  lane :generate do
+    sh("cd .. && ./bootstrap.sh")
+  end
+
+  desc "Run unit + UI tests on the default simulator"
+  lane :test do
+    generate
+    run_tests(
+      project: PROJECT,
+      scheme: SCHEME,
+      devices: ["iPhone 15"]
+    )
+  end
+
+  desc "Build a Debug build for the simulator (smoke build, no signing)"
+  lane :build_for_simulator do
+    generate
+    build_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Debug",
+      skip_package_ipa: true,
+      skip_archive: true,
+      destination: "generic/platform=iOS Simulator"
+    )
+  end
+
+  desc "Archive and upload a Release build to TestFlight"
+  lane :beta do
+    generate
+    build_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Release"
+    )
+    upload_to_testflight
+  end
+end
